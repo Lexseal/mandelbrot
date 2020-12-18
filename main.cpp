@@ -2,14 +2,14 @@
 #include <iostream>
 #include <complex>
 
-#define X_MIN -1.5
-#define X_MAX 0.5
-#define Y_MIN -1
-#define Y_MAX 1
+#define X_MIN -1.03
+#define X_MAX -0.88
+#define Y_MIN -0.3
+#define Y_MAX -0.25
 
-#define RESOLUTION 500
+#define RESOLUTION 10000
 
-#define ITER 50
+#define ITER 90
 
 sf::Color hsv(int hue, float sat, float val) {
     hue %= 360;
@@ -49,8 +49,11 @@ void set(sf::Uint8* pixels, const int &r, const int &c, const sf::Color &color) 
 }
 
 int main() {
-	int width = (X_MAX-X_MIN)*RESOLUTION;
-	int height = (Y_MAX-Y_MIN)*RESOLUTION;
+	int width = ((X_MAX-X_MIN)*RESOLUTION+0.5);
+	int height = ((Y_MAX-Y_MIN)*RESOLUTION+0.5);
+	std::cout << width << " " << height << std::endl;
+	std::cout << X_MIN*RESOLUTION << " " << X_MAX*RESOLUTION << std::endl;
+	std::cout << Y_MIN*RESOLUTION << " " << Y_MAX*RESOLUTION << std::endl;
 	sf::RenderWindow window(sf::VideoMode(width, height), "mandelbrot");
 	sf::Uint8 *pixels = new sf::Uint8[width * height * 4];
 	sf::Texture texture;
@@ -70,7 +73,8 @@ int main() {
 				std::complex<double> c(double(a)/double(RESOLUTION), double(b)/double(RESOLUTION));
 				std::complex<double> z = c;
 				double length = norm(z);
-				for (int i = 0; i < ITER && length < 2; i++) {
+				int iter = 0;
+				while (length <= 2 && (++iter) < ITER) {
 					z = pow(z, 2) + c;
 					length = norm(z);
 				}
@@ -79,10 +83,10 @@ int main() {
 				
 				int row = b-Y_MIN*RESOLUTION;
 				int col = a-X_MIN*RESOLUTION;
-				if (length > 2) {
+				if (iter == ITER) {
 					set(pixels, row, col, sf::Color::Black);
 				} else {
-					set(pixels, row, col, hsv(length*180, 1, 1));
+					set(pixels, row, col, sf::Color((iter%4)*64, (iter%8)*32, (iter%16)*16));
 				}
 			}
 		}
