@@ -2,46 +2,15 @@
 #include <iostream>
 #include <complex>
 
-#define X_MIN -1.03
-#define X_MAX -0.88
-#define Y_MIN -0.3
-#define Y_MAX -0.25
+#define INIT_WIN_WIDTH 640
+#define INIT_WIN_HEIGHT 360
+#define RESOLUTION 1024
+#define SCALING_FACTOR 1.1
 
-#define RESOLUTION 10000
-
-#define ITER 90
-
-sf::Color hsv(int hue, float sat, float val) {
-    hue %= 360;
-    while (hue<0) hue += 360;
-
-    if (sat<0.f) sat = 0.f;
-    if (sat>1.f) sat = 1.f;
-
-    if (val<0.f) val = 0.f;
-    if (val>1.f) val = 1.f;
-
-    int h = hue / 60;
-    float f = float(hue) / 60 - h;
-    float p = val*(1.f - sat);
-    float q = val*(1.f - sat*f);
-    float t = val*(1.f - sat*(1 - f));
-
-    switch (h) {
-		default:
-		case 0:
-		case 6: return sf::Color(val * 255, t * 255, p * 255);
-		case 1: return sf::Color(q * 255, val * 255, p * 255);
-		case 2: return sf::Color(p * 255, val * 255, t * 255);
-		case 3: return sf::Color(p * 255, q * 255, val * 255);
-		case 4: return sf::Color(t * 255, p * 255, val * 255);
-		case 5: return sf::Color(val * 255, p * 255, q * 255);
-    }
-}
+#define ITER 64
 
 void set(sf::Uint8* pixels, const int &r, const int &c, const sf::Color &color) {
-	int width = (X_MAX-X_MIN)*RESOLUTION;
-	sf::Uint8 *pixel = pixels+(r*width+c)*4;
+	sf::Uint8 *pixel = pixels+(r*INIT_WIN_WIDTH+c)*4;
 	*pixel = color.r; pixel++;
 	*pixel = color.g; pixel++;
 	*pixel = color.b; pixel++;
@@ -49,15 +18,26 @@ void set(sf::Uint8* pixels, const int &r, const int &c, const sf::Color &color) 
 }
 
 int main() {
-	int width = ((X_MAX-X_MIN)*RESOLUTION+0.5);
-	int height = ((Y_MAX-Y_MIN)*RESOLUTION+0.5);
-	std::cout << width << " " << height << std::endl;
-	std::cout << X_MIN*RESOLUTION << " " << X_MAX*RESOLUTION << std::endl;
-	std::cout << Y_MIN*RESOLUTION << " " << Y_MAX*RESOLUTION << std::endl;
-	sf::RenderWindow window(sf::VideoMode(width, height), "mandelbrot");
-	sf::Uint8 *pixels = new sf::Uint8[width * height * 4];
+	double winWidth = INIT_WIN_WIDTH;
+	double winHeight = INIT_WIN_HEIGHT;
+	double scaling = 0.2; // default scaling factor
+	double xCenter = 0.0;
+	double xMax = xCenter + winWidth/2.0/double(RESOLUTION)/scaling;
+	double xMin = xCenter - winWidth/2.0/double(RESOLUTION)/scaling;
+	double xSpan = xMax-xMin;
+	double yCenter = 0.0;
+	double yMax = yCenter + winHeight/2.0/double(RESOLUTION)/scaling;
+	double yMin = yCenter - winHeight/2.0/double(RESOLUTION)/scaling;;
+	double ySpan = yMax-yMin;
+	
+
+	std::cout << xMin << " " << xMax << " " << yMin << " " << yMax << std::endl;
+	std::cout << xSpan << " " << ySpan << std::endl;
+
+	sf::RenderWindow window(sf::VideoMode(INIT_WIN_WIDTH, INIT_WIN_HEIGHT), "mandelbrot");
+	sf::Uint8 *pixels = new sf::Uint8[INIT_WIN_WIDTH * INIT_WIN_HEIGHT * 4];
 	sf::Texture texture;
-	texture.create(width, height);
+	texture.create(INIT_WIN_WIDTH, INIT_WIN_HEIGHT);
 	sf::Sprite sprite;
 	sprite.setTexture(texture);
 
@@ -66,11 +46,40 @@ int main() {
 		sf::Event event;
 		while (window.pollEvent(event)) {
 			if (event.type == sf::Event::Closed) window.close();
+
+			if (event.type == sf::Event::MouseWheelScrolled) {
+				if (event.mouseWheelScroll.wheel == sf::Mouse::VerticalWheel) {
+					if (event.mouseWheelScroll.delta > 0) scaling *= SCALING_FACTOR;
+					else scaling /= SCALING_FACTOR;
+			        xMax = xCenter + winWidth/2.0/double(RESOLUTION)/scaling;
+			        xMin = xCenter - winWidth/2.0/double(RESOLUTION)/scaling;
+			        xSpan = xMax-xMin;
+			        yMax = yCenter + winHeight/2.0/double(RESOLUTION)/scaling;
+			        yMin = yCenter - winHeight/2.0/double(RESOLUTION)/scaling;
+			        ySpan = yMax-yMin;
+				}
+			} else if (event.type == sf::Event::MouseButtonPressed) {
+				if (event.mouseButton.button == sf::Mouse::Left) {
+					xCenter = xMin + double(event.mouseButton.x)/winWidth*xSpan;
+					yCenter = yMin + ySpan - double(event.mouseButton.y)/winHeight*ySpan;
+					xMax = xCenter + winWidth/2.0/double(RESOLUTION)/scaling;
+			        xMin = xCenter - winWidth/2.0/double(RESOLUTION)/scaling;
+			        yMax = yCenter + winHeight/2.0/double(RESOLUTION)/scaling;
+			        yMin = yCenter - winHeight/2.0/double(RESOLUTION)/scaling;
+					std::cout << xCenter << " " << yCenter << std::endl;
+				}
+			}
+			
+		// 	int width = xPixMax-xPixMin+1;
+		// 	int height = yPixMax-yPixMin+1;
 		}
 
-		for (int a = X_MIN*RESOLUTION; a < X_MAX*RESOLUTION; a++) {
-			for (int b = Y_MIN*RESOLUTION; b < Y_MAX*RESOLUTION; b++) {
-				std::complex<double> c(double(a)/double(RESOLUTION), double(b)/double(RESOLUTION));
+		for (int row = 0; row < INIT_WIN_HEIGHT; row++) {
+			for (int col = 0; col < INIT_WIN_WIDTH; col++) {
+				double a = xMin + double(col)/winWidth*xSpan;
+				double b = yMax - double(row)/winHeight*ySpan;
+				//std::cout << a << " " << b << std::endl;
+				std::complex<double> c(a, b);
 				std::complex<double> z = c;
 				double length = norm(z);
 				int iter = 0;
@@ -81,8 +90,6 @@ int main() {
 				
 				//std::cout << length << std::endl;
 				
-				int row = b-Y_MIN*RESOLUTION;
-				int col = a-X_MIN*RESOLUTION;
 				if (iter == ITER) {
 					set(pixels, row, col, sf::Color::Black);
 				} else {
